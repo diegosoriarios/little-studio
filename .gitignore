@@ -1,0 +1,17 @@
+# Build directories
+build/
+build-release/
+
+# Locally extracted dependencies (no-root workflow)
+.deps/
+
+# Qt / CMake artifacts
+*.o
+*.user
+CMakeLists.txt.user*
+compile_commands.json
+
+# Editors / OS
+.vscode/
+.idea/
+.directory

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Lite Studio
+GenericName=Code Editor
+Comment=Lightweight project-aware code viewer/editor
+Exec=lite-studio
+Icon=lite-studio
+Terminal=false
+Categories=Development;TextEditor;Utility;
+Keywords=editor;code;android;ios;gradle;
