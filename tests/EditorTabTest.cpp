@@ -5,6 +5,8 @@
 #include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
+#include <QKeyEvent>
+#include <QSettings>
 #include <QTemporaryDir>
 
 #include <QStringEncoder>
@@ -66,6 +68,30 @@ void makeWritable(const QString &path)
         | QFileDevice::ReadOther);
 }
 
+void typeText(QWidget *widget, const QString &text)
+{
+    for (const QChar ch : text) {
+        QKeyEvent event(QEvent::KeyPress, Qt::Key_unknown, Qt::NoModifier,
+                        QString(ch));
+        QApplication::sendEvent(widget, &event);
+    }
+}
+
+void pressReturn(QWidget *widget)
+{
+    QKeyEvent event(QEvent::KeyPress, Qt::Key_Return, Qt::NoModifier);
+    QApplication::sendEvent(widget, &event);
+}
+
+QString lineText(EditorTab &tab, int line)
+{
+    QString text = tab.text(line);
+    while (text.endsWith(QLatin1Char('\n'))
+           || text.endsWith(QLatin1Char('\r')))
+        text.chop(1);
+    return text;
+}
+
 } // namespace
 
 int main(int argc, char *argv[])
@@ -78,6 +104,11 @@ int main(int argc, char *argv[])
         return 1;
     const QString base = dir.path();
     QString err;
+
+    // Keep QSettings writes out of the real user configuration.
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
+                       base + "/settings");
 
     // 1. Unmodified save must not rewrite the file (byte- and mtime-exact).
     {
@@ -443,6 +474,56 @@ int main(int argc, char *argv[])
         CHECK(fuzzyScore(QStringLiteral("src/kotlin.txt"),
                          QStringLiteral("zzz")) == -1);
         CHECK(fuzzyScore(QStringLiteral("anything.kt"), QString()) == 0);
+    }
+
+    // 21. Dot-member completion keeps one row per member even after the
+    // document word list has changed Scintilla's separator.
+    {
+        EditorTab tab;
+        tab.setText(QStringLiteral("Obj alp; alp.alpha; alp.beta;\n"));
+        tab.setCursorPosition(1, 0);
+        typeText(&tab, QStringLiteral("alp"));
+        CHECK(tab.SendScintilla(QsciScintillaBase::SCI_AUTOCACTIVE) != 0);
+        typeText(&tab, QStringLiteral("."));
+        CHECK(tab.SendScintilla(QsciScintillaBase::SCI_AUTOCGETSEPARATOR)
+              == ' ');
+        CHECK(tab.SendScintilla(QsciScintillaBase::SCI_AUTOCACTIVE) != 0);
+    }
+
+    // 22. Auto-indent copies the previous line's spaces.
+    {
+        QSettings().setValue(QStringLiteral("editor/autoIndent"), true);
+        EditorTab tab;
+        tab.setIndentationsUseTabs(false);
+        tab.setIndentationWidth(4);
+        tab.setTabWidth(4);
+        tab.setText(QStringLiteral("    int x = 1;\n"));
+        tab.setCursorPosition(0, 14);
+        pressReturn(&tab);
+        CHECK(lineText(tab, 1) == QStringLiteral("    "));
+    }
+
+    // 23. Auto-indent honours tab indentation from the project style.
+    {
+        EditorTab tab;
+        tab.setAutoIndentEnabled(true);
+        tab.setIndentationsUseTabs(true);
+        tab.setIndentationWidth(4);
+        tab.setTabWidth(4);
+        tab.setText(QStringLiteral("\tif (x)\n"));
+        tab.setCursorPosition(0, 7);
+        pressReturn(&tab);
+        CHECK(lineText(tab, 1) == QStringLiteral("\t"));
+    }
+
+    // 24. Auto-indent stays off when the setting is disabled.
+    {
+        QSettings().setValue(QStringLiteral("editor/autoIndent"), false);
+        EditorTab tab;
+        tab.setText(QStringLiteral("    int x = 1;\n"));
+        tab.setCursorPosition(0, 14);
+        pressReturn(&tab);
+        CHECK(lineText(tab, 1).isEmpty());
     }
 
     if (failures == 0) {

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.diegosoriarios.LiteStudio</id>
+  <name>Lite Studio</name>
+  <summary>Lightweight project-aware code viewer and editor</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+  <developer id="io.github.diegosoriarios">
+    <name>Diego</name>
+  </developer>
+  <description>
+    <p>
+      Lite Studio is a fast, lightweight code viewer and editor built with Qt 6
+      and QScintilla. It opens a folder, indexes it safely (including symlinked
+      trees), and offers tabs, syntax highlighting, project-wide search, Quick
+      Open, Git diffs, an embedded terminal, and optional Android and iOS build
+      panels.
+    </p>
+    <p>
+      It is designed to stay small and dependency-light: no language server, no
+      background file watcher, and no indexing daemon.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.diegosoriarios.LiteStudio.desktop</launchable>
+  <url type="homepage">https://github.com/diegosoriarios/little-studio</url>
+  <url type="bugtracker">https://github.com/diegosoriarios/little-studio/issues</url>
+  <url type="vcs-browser">https://github.com/diegosoriarios/little-studio</url>
+  <categories>
+    <category>Development</category>
+    <category>TextEditor</category>
+    <category>Utility</category>
+  </categories>
+  <keywords>
+    <keyword>editor</keyword>
+    <keyword>code</keyword>
+    <keyword>android</keyword>
+    <keyword>ios</keyword>
+    <keyword>gradle</keyword>
+  </keywords>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-11-14">
+      <description>
+        <p>First tagged release.</p>
+      </description>
+    </release>
+  </releases>
+</component>

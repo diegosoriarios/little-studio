@@ -1,0 +1,69 @@
+app-id: io.github.diegosoriarios.LiteStudio
+runtime: org.kde.Platform
+runtime-version: '6.10'
+sdk: org.kde.Sdk
+command: lite-studio
+
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri
+  # A code editor must open arbitrary project folders and run tools in them.
+  - --filesystem=host
+
+cleanup:
+  - /include
+  - /lib/cmake
+  - /lib/pkgconfig
+  - '*.a'
+  - '*.la'
+
+modules:
+  - name: lxqt2-build-tools
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+    sources:
+      - type: archive
+        url: https://github.com/lxqt/lxqt-build-tools/releases/download/2.1.0/lxqt-build-tools-2.1.0.tar.xz
+        sha256: 2458b629936f5e1ff8850e9953e49d66b96ac419cb484fed0a4d28a711fd8ef9
+
+  - name: qscintilla
+    buildsystem: simple
+    build-commands:
+      - cd src && qmake6 qscintilla.pro
+      - cd src && make -j"$FLATPAK_BUILDER_N_JOBS"
+      - mkdir -p /app/lib /app/include
+      # Keep the versioned library and its symlinks; the app links the
+      # unversioned .so at build time and loads the SONAME at runtime.
+      - find src -maxdepth 1 -name 'libqscintilla2_qt6.so*' -exec cp -a {} /app/lib/ \;
+      - cp -a src/Qsci /app/include/
+    sources:
+      - type: archive
+        url: https://www.riverbankcomputing.com/static/Downloads/QScintilla/2.14.1/QScintilla_src-2.14.1.tar.gz
+        sha256: dfe13c6acc9d85dfcba76ccc8061e71a223957a6c02f3c343b30a9d43a4cdd4d
+
+  - name: qtermwidget
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_EXAMPLE=OFF
+      - -DUPDATE_TRANSLATIONS=OFF
+      - -DUSE_UTF8PROC=OFF
+    sources:
+      - type: archive
+        url: https://github.com/lxqt/qtermwidget/releases/download/2.1.0/qtermwidget-2.1.0.tar.xz
+        sha256: 26ecb2c3a38de10db3b5ae24970957a33520f7742e3ae1ff93d345ded2be8e4b
+
+  - name: lite-studio
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DLITE_STUDIO_WERROR=OFF
+    rename-desktop-file: lite-studio.desktop
+    rename-icon: lite-studio
+    sources:
+      - type: dir
+        path: ../..

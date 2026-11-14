@@ -2,6 +2,7 @@
 #define LITE_STUDIO_FILE_COLLECTOR_H
 
 #include <QObject>
+#include <QSet>
 #include <QStringList>
 #include <QTimer>
 
@@ -30,6 +31,7 @@ private:
 
     QTimer m_timer;
     QStringList m_dirs;      // pending directories (stack)
+    QSet<QString> m_visited; // canonical paths already walked
     QStringList m_files;
     int m_maxFiles = 0;
     bool m_running = false;

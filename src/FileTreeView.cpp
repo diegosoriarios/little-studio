@@ -49,6 +49,7 @@ void FileTreeView::setRootPath(const QString &path)
     root->setData(0, PathRole, m_rootPath);
     root->setData(0, IsDirRole, true);
     root->setData(0, LoadedRole, false);
+    root->setData(0, CanonicalRole, m_rootPath);
     root->setToolTip(0, m_rootPath);
     addPlaceholder(root);
 
@@ -77,25 +78,57 @@ void FileTreeView::populate(QTreeWidgetItem *dirItem)
         QDir::DirsFirst | QDir::Name | QDir::IgnoreCase);
 
     for (const QFileInfo &entry : entries) {
+        const bool isDir = entry.isDir();
+        const QString canonical = isDir ? entry.canonicalFilePath() : QString();
+        const bool recursiveLink = isDir && !canonical.isEmpty()
+            && chainContainsCanonical(dirItem, canonical);
+
         auto *child = new QTreeWidgetItem(dirItem);
         child->setText(0, entry.fileName());
         child->setIcon(0, style()->standardIcon(
-            entry.isDir() ? QStyle::SP_DirIcon : QStyle::SP_FileIcon));
+            isDir ? QStyle::SP_DirIcon : QStyle::SP_FileIcon));
         child->setData(0, PathRole, entry.absoluteFilePath());
-        child->setData(0, IsDirRole, entry.isDir());
+        child->setData(0, IsDirRole, isDir);
         child->setToolTip(0, entry.absoluteFilePath());
 
-        if (entry.isDir()) {
-            child->setData(0, LoadedRole, false);
-            addPlaceholder(child);
+        if (!isDir) {
+            child->setData(0, LoadedRole, true);
+            continue;
+        }
+
+        child->setData(0, CanonicalRole, canonical);
+        if (recursiveLink) {
+            // A symlink to this folder or one of its ancestors: show it so the
+            // link is discoverable, but never allow expansion (it would
+            // recurse forever).
+            child->setData(0, LoadedRole, true);
+            child->setDisabled(true);
+            child->setToolTip(0,
+                tr("Recursive link (points to an ancestor folder)"));
             if (isIgnoredName(entry.fileName()))
                 child->setHidden(!m_showIgnored);
-        } else {
-            child->setData(0, LoadedRole, true);
+            continue;
         }
+
+        child->setData(0, LoadedRole, false);
+        addPlaceholder(child);
+        if (isIgnoredName(entry.fileName()))
+            child->setHidden(!m_showIgnored);
     }
 
     dirItem->setData(0, LoadedRole, true);
+}
+
+bool FileTreeView::chainContainsCanonical(QTreeWidgetItem *item,
+                                          const QString &canonicalPath)
+{
+    for (QTreeWidgetItem *ancestor = item; ancestor;
+         ancestor = ancestor->parent()) {
+        const QString path = ancestor->data(0, CanonicalRole).toString();
+        if (!path.isEmpty() && path == canonicalPath)
+            return true;
+    }
+    return false;
 }
 
 void FileTreeView::addPlaceholder(QTreeWidgetItem *dirItem)

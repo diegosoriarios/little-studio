@@ -6,5 +6,5 @@ Comment=Lightweight project-aware code viewer/editor
 Exec=lite-studio
 Icon=lite-studio
 Terminal=false
-Categories=Development;TextEditor;Utility;
+Categories=Development;TextEditor;
 Keywords=editor;code;android;ios;gradle;

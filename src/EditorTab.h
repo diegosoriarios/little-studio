@@ -58,6 +58,7 @@ public:
     void ensureFinalNewline();
     void setWhitespaceVisible(bool on);
     void setIndentGuidesVisible(bool on);
+    void setAutoIndentEnabled(bool on);
 
     void setWordWrapEnabled(bool enabled);
     void setTheme(Theme::Mode mode);

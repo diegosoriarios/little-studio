@@ -37,9 +37,14 @@ private:
     QTreeWidgetItem *findChildItem(QTreeWidgetItem *parent,
                                    const QString &name) const;
 
+    // True when canonicalPath matches this item or any of its ancestors.
+    static bool chainContainsCanonical(QTreeWidgetItem *item,
+                                       const QString &canonicalPath);
+
     static constexpr int PathRole = Qt::UserRole;
     static constexpr int IsDirRole = Qt::UserRole + 1;
     static constexpr int LoadedRole = Qt::UserRole + 2;
+    static constexpr int CanonicalRole = Qt::UserRole + 3;
 
     QString m_rootPath;
     bool m_showIgnored = false;

@@ -14,8 +14,6 @@
 
 namespace {
 
-constexpr int kMaxDiffBytes = 2 * 1024 * 1024;
-
 // Dark/light-friendly diff colors (0 = dark, 1 = light).
 struct DiffColors {
     QColor removed, added, header, position, command, fg, paper;

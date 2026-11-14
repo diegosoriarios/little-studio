@@ -1,6 +1,13 @@
 # Build directories
 build/
 build-release/
+build-appimage/
+build-macos/
+build-flatpak/
+
+# Packaging outputs and downloaded tools
+dist/
+.tools/
 
 # Locally extracted dependencies (no-root workflow)
 .deps/

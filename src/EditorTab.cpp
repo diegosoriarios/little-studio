@@ -27,10 +27,12 @@ EditorTab::EditorTab(QWidget *parent)
 
 void EditorTab::configureEditor()
 {
-    // Preserve what the user typed: no auto-indent, no completion popups,
-    // no call tips, no formatting of any kind.
+    // Copy the previous line's indentation on Return (brace-aware for lexers
+    // that declare block markers); toggled from View > Auto Indent.
+    QSettings settings;
     setUtf8(true);
-    setAutoIndent(false);
+    setAutoIndent(
+        settings.value(QStringLiteral("editor/autoIndent"), true).toBool());
     // Word completion from the current buffer while typing.
     setAutoCompletionSource(QsciScintilla::AcsDocument);
     setAutoCompletionThreshold(3);
@@ -59,7 +61,6 @@ void EditorTab::configureEditor()
     markerDefine(QsciScintilla::Bookmark, kBookmarkMarker);
     setMarkerBackgroundColor(QColor(0xe5, 0xc0, 0x7b), kBookmarkMarker);
 
-    QSettings settings;
     setWhitespaceVisibility(
         settings.value(QStringLiteral("editor/whitespace"), false).toBool()
             ? QsciScintilla::WsVisible : QsciScintilla::WsInvisible);
@@ -210,7 +211,13 @@ void EditorTab::showMemberCompletion()
     if (members.isEmpty())
         return;
 
-    const QByteArray listData = members.join(QLatin1Char(' ')).toUtf8();
+    // QScintilla's own completion switches Scintilla's list separator to a
+    // private control character, so joining with spaces would collapse this
+    // list into one row after any document-word completion. Set it back.
+    constexpr char kSeparator = ' ';
+    const QByteArray listData = members.join(QLatin1Char(kSeparator)).toUtf8();
+    SendScintilla(QsciScintillaBase::SCI_AUTOCSETSEPARATOR,
+                  static_cast<unsigned long>(kSeparator));
     SendScintilla(QsciScintillaBase::SCI_AUTOCSHOW,
                   static_cast<unsigned long>(0), listData.constData());
 }
@@ -508,6 +515,11 @@ void EditorTab::setWhitespaceVisible(bool on)
 void EditorTab::setIndentGuidesVisible(bool on)
 {
     setIndentationGuides(on);
+}
+
+void EditorTab::setAutoIndentEnabled(bool on)
+{
+    setAutoIndent(on);
 }
 
 void EditorTab::setTheme(Theme::Mode mode)

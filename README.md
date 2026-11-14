@@ -1,5 +1,7 @@
 # Lite Studio
 
+[![CI](https://github.com/diegosoriarios/little-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/diegosoriarios/little-studio/actions/workflows/ci.yml)
+
 A lightweight, project-aware code viewer/editor for desktop. It is **not an IDE**:
 no language servers, no build system, no Git integration, no background threads.
 Built for browsing and lightly editing code on low-powered machines.
@@ -10,6 +12,10 @@ C++17 · Qt 6 Widgets · QScintilla · CMake · Linux first.
 
 - Project file tree with **lazy loading** (directories are read only when expanded;
   no file watching, no indexing)
+- **Symlink-safe traversal**: cyclic or ancestor-pointing links are walked once
+  (Quick Open, project search, go-to-definition) and appear in the tree as
+  greyed, non-expandable “recursive link” nodes; links to other folders are
+  followed normally
 - `build`, `.gradle`, `.git`, `DerivedData`, `node_modules`, `.idea` hidden by
   default, toggle via **View → Show Ignored Folders** (expansion state preserved)
 - Tabbed editing with close buttons, `*` modified marker, Save/Discard/Cancel
@@ -55,7 +61,8 @@ C++17 · Qt 6 Widgets · QScintilla · CMake · Linux first.
 - **Editor productivity**: toggle comment (Ctrl+/), duplicate line (Ctrl+D),
   move lines (Alt+Up/Down), go to matching brace, bookmarks (Ctrl+F2/F2),
   reopen closed tab (Ctrl+Shift+T), middle-click close, whitespace/indent
-  guides, EOL conversion, trim trailing whitespace + final newline
+  guides, auto-indent on Return, EOL conversion, trim trailing whitespace +
+  final newline
 - **Go to Symbol in File** (Ctrl+Shift+O): filtered outline of every
   declaration in the current file
 - **Session restore** (open files + cursors) and **auto-reload of unmodified
@@ -70,10 +77,10 @@ C++17 · Qt 6 Widgets · QScintilla · CMake · Linux first.
   project-wide or per-file, syntax-colored with the QScintilla diff lexer;
   appears only for git repositories
 - **Simple code intelligence**: identifier completion while typing
-  (Ctrl+Space for explicit), dot-member options from names used in the file,
-  and **Go to Definition** (Ctrl+Click / F12, Alt+Left to go back) with
-  per-language heuristics (Kotlin/Swift/Java/TS/JS/Dart/C/C++) and a bounded
-  project-wide fallback — no language server involved
+  (Ctrl+Space for explicit), a selectable dot-member list built from names used
+  in the file, and **Go to Definition** (Ctrl+Click / F12, Alt+Left to go back)
+  with per-language heuristics (Kotlin/Swift/Java/TS/JS/Dart/C/C++) and a
+  bounded project-wide fallback — no language server involved
 - **Task presets**: optional `.lite-studio/tasks.json` entries appear in a
   **Tasks** menu and run in the Console, e.g.
   `{"tasks":[{"name":"Build debug","command":"./gradlew","args":["assembleDebug"]}]}`
@@ -93,7 +100,8 @@ C++17 · Qt 6 Widgets · QScintilla · CMake · Linux first.
 - **iOS panel** (macOS + Xcode only, bottom dock + iOS menu): simulator
   boot/shutdown, scheme list, Build Debug (`xcodebuild`), Install
   (`simctl install`), Run (`simctl launch`), and a filtered/batched log stream
-- Command line: `lite-studio [path]` — opens a folder, or a file plus its parent
+- Command line: `lite-studio [path]` — opens a folder, or a file plus its
+  parent; `--help` and `--version` work without a display
 
 ## Architecture
 
@@ -139,7 +147,11 @@ lite-studio/
 │   ├── AppleToolingTest.cpp    simctl/xcodebuild JSON parsers
 │   ├── TaskPresetsTest.cpp     tasks.json parsing
 │   ├── CodeToolsTest.cpp       completion/declaration heuristics
-│   └── GitToolingTest.cpp      git parsing + repo detection fixtures
+│   ├── GitToolingTest.cpp      git parsing + repo detection fixtures
+│   ├── RecoveryStoreTest.cpp   recovery snapshot round trips
+│   ├── EditorConfigTest.cpp    .editorconfig indentation parsing
+│   ├── FileCollectorTest.cpp   chunked walk, caps, symlink-cycle safety
+│   └── FileTreeViewTest.cpp    lazy tree, recursive-link expansion guard
 └── .deps/                  Optional local QScintilla (see below)
 ```
 
@@ -203,18 +215,41 @@ Install: `cmake --install build-release --prefix ~/.local` (binary → `bin/`).
 
 ## Tests
 
+All suites are registered with CTest:
+
 ```bash
-cmake --build build --target fileio-test editortab-test process-test project-test android-test apple-test task-test codetools-test git-test
-./build/fileio-test       # encoding/BOM/EOL/binary round trips
-./build/editortab-test    # headless (offscreen) load/save/theme/lexer checks
-./build/process-test      # process streaming, cancellation, ANSI stripping
-./build/project-test      # project detection fixture trees
-./build/android-test      # Android SDK/AVD/device/applicationId parsing
-./build/apple-test        # simctl/xcodebuild JSON parsing (runs anywhere)
-./build/task-test         # .lite-studio/tasks.json parsing
-./build/codetools-test    # completion/declaration heuristics
-./build/git-test          # git parsing + repo detection fixtures
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake --build build --target check    # build all suites, then run ctest
+ctest --test-dir build --output-on-failure
 ```
+
+Individual suites can still be built and run directly:
+
+```bash
+cmake --build build --target fileio-test editortab-test process-test project-test android-test apple-test task-test codetools-test recovery-test editorconfig-test git-test filecollector-test filetree-test
+./build/fileio-test             # encoding/BOM/EOL/binary round trips
+./build/editortab-test          # headless (offscreen) load/save/theme/lexer checks
+./build/process-test            # process streaming, cancellation, ANSI stripping
+./build/project-test            # project detection fixture trees
+./build/android-test            # Android SDK/AVD/device/applicationId parsing
+./build/apple-test              # simctl/xcodebuild JSON parsing (runs anywhere)
+./build/task-test               # .lite-studio/tasks.json parsing
+./build/codetools-test          # completion/declaration heuristics
+./build/recovery-test           # recovery snapshot round trips
+./build/editorconfig-test       # .editorconfig indentation parsing
+./build/git-test                # git parsing + repo detection fixtures
+./build/filecollector-test      # walker caps + symlink-cycle termination
+./build/filetree-test           # tree expansion + recursive-link guard
+```
+
+Widget suites set `QT_QPA_PLATFORM=offscreen` themselves, so they run without a
+display; CTest also sets it as a test environment property.
+
+CI (`.github/workflows/ci.yml`) builds Debug and Release on Linux with GCC and
+Clang and on macOS, runs all suites, and has an AddressSanitizer + UBSan job.
+CI adds `-DLITE_STUDIO_WERROR=ON` and `-DLITE_STUDIO_SANITIZERS=ON`; both
+options default to `OFF` for local builds. Sanitizer runs set
+`ASAN_OPTIONS=detect_leaks=0` because Qt is not built with sanitizers.
 
 ## Intentionally not included
 
@@ -231,17 +266,60 @@ cmake --build build --target fileio-test editortab-test process-test project-tes
 - Encoding/EOL pickers or conversion UI
 - Binary/hex viewer
 - Drag and drop, file-tree context-menu operations
-- Auto-formatting, trailing-whitespace trimming, auto-indent (all disabled)
+- Auto-formatting (not implemented)
+
+Remaining release, macOS verification/signing, and quality-tooling work is
+tracked in [NEXT-STEPS.md](NEXT-STEPS.md).
 
 ## Roadmap ideas (later stages)
 
 - **Android/iOS tooling** (build/install/run, emulator & simulator management,
   logcat/log stream) — see [run-plan.md](run-plan.md)
 - `.editorconfig`-based indent detection
-- Foldable code blocks; symlink-loop protection in the file tree
-- Windows/macOS packaging; system QScintilla discovery via pkg-config fallback
+- Foldable code blocks
+- Windows packaging
 - Bracket-pair colorization and indent guides in SimpleLexer
 
-## License note
+## Versioning and releases
 
-QScintilla is GPLv3/commercial — review licensing before distributing binaries.
+Versions follow [Semantic Versioning](https://semver.org/) and are derived from
+git tags: the build reads `git describe --tags --match "v*"` and falls back to
+the release version in `CMakeLists.txt` for source tarballs. `lite-studio
+--version` prints the same string, and `CHANGELOG.md` records user-visible
+changes.
+
+To cut a release:
+
+```bash
+git tag -a v0.1.0 -m "Lite Studio 0.1.0"
+git push origin v0.1.0
+```
+
+Pushing a `v*` tag runs `.github/workflows/release.yml`, which builds an
+AppImage and two DMGs (Apple silicon and Intel) and attaches them to a GitHub
+release.
+
+### Packaging locally
+
+- **AppImage** (Linux, downloads `linuxdeploy`/`appimagetool` on first use):
+  `packaging/appimage/build-appimage.sh dist`
+- **Flatpak** (needs `org.flatpak.Builder` and the KDE runtime/SDK):
+  `flatpak run org.flatpak.Builder --force-clean build-flatpak packaging/flatpak/io.github.diegosoriarios.LiteStudio.yml`
+- **macOS DMG** (on a Mac): `packaging/macos/build-dmg.sh dist`; signing and
+  notarization are documented in
+  [packaging/macos/SIGNING.md](packaging/macos/SIGNING.md) and are not yet
+  enabled in CI.
+
+## License
+
+Lite Studio is free software, licensed under the
+[GNU General Public License v3.0](LICENSE) (SPDX: `GPL-3.0-only`). You may
+redistribute and/or modify it under those terms; there is no warranty, to the
+extent permitted by law.
+
+Copyright (C) 2026 Diego &lt;diegosoriarios@gmail.com&gt;.
+
+The GPLv3 is required because QScintilla is dual-licensed under the GPLv3 and
+a commercial license, and this project uses the GPLv3 option. Third-party
+components and their licenses are listed in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

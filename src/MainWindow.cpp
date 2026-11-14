@@ -813,6 +813,18 @@ void MainWindow::createMenus()
     });
     viewMenu->addAction(m_indentGuidesAction);
 
+    m_autoIndentAction = new QAction(tr("Auto &Indent"), this);
+    m_autoIndentAction->setCheckable(true);
+    connect(m_autoIndentAction, &QAction::toggled, this, [this](bool on) {
+        QSettings settings;
+        settings.setValue(QStringLiteral("editor/autoIndent"), on);
+        for (int i = 0; i < m_tabs->count(); ++i) {
+            if (auto *editor = qobject_cast<EditorTab *>(m_tabs->widget(i)))
+                editor->setAutoIndentEnabled(on);
+        }
+    });
+    viewMenu->addAction(m_autoIndentAction);
+
     m_restoreSessionAction = new QAction(tr("Restore Session on Open"), this);
     m_restoreSessionAction->setCheckable(true);
     viewMenu->addAction(m_restoreSessionAction);
@@ -1322,10 +1334,13 @@ void MainWindow::applyEditorVisuals()
         settings.value(QStringLiteral("editor/whitespace"), false).toBool();
     const bool guides =
         settings.value(QStringLiteral("editor/indentGuides"), true).toBool();
+    const bool autoIndent =
+        settings.value(QStringLiteral("editor/autoIndent"), true).toBool();
     for (int i = 0; i < m_tabs->count(); ++i) {
         if (auto *editor = qobject_cast<EditorTab *>(m_tabs->widget(i))) {
             editor->setWhitespaceVisible(whitespace);
             editor->setIndentGuidesVisible(guides);
+            editor->setAutoIndentEnabled(autoIndent);
         }
     }
 }
@@ -1612,7 +1627,7 @@ void MainWindow::showSymbolOutline()
     layout->addWidget(list, 1);
 
     connect(input, &QLineEdit::textChanged, &dialog,
-            [&symbols, list, input](const QString &filter) {
+            [&symbols, list](const QString &filter) {
         list->clear();
         for (const CodeTools::SymbolMatch &symbol : symbols) {
             if (!filter.isEmpty()
@@ -1749,6 +1764,8 @@ void MainWindow::loadSettings()
 
     m_wordWrapAction->setChecked(
         settings.value("ui/wordwrap", false).toBool());
+    m_autoIndentAction->setChecked(
+        settings.value("editor/autoIndent", true).toBool());
     m_showIgnoredAction->setChecked(
         settings.value("ui/showignored", false).toBool());
     m_syncTreeAction->setChecked(

@@ -179,6 +179,7 @@ private:
     QAction *m_ensureNewlineAction = nullptr;
     QAction *m_whitespaceAction = nullptr;
     QAction *m_indentGuidesAction = nullptr;
+    QAction *m_autoIndentAction = nullptr;
     QAction *m_reopenTabAction = nullptr;
     QMenu *m_lineEndingsMenu = nullptr;
     QStringList m_closedTabs;
