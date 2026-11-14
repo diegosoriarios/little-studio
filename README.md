@@ -10,12 +10,16 @@ C++17 · Qt 6 Widgets · QScintilla · CMake · Linux first.
 
 ## Features
 
-- Project file tree with **lazy loading** (directories are read only when expanded;
-  no file watching, no indexing)
+- Project file tree with **lazy loading** (directories are read when expanded,
+  plus one level ahead to merge single-child folder chains; no file watching,
+  no indexing)
 - **Symlink-safe traversal**: cyclic or ancestor-pointing links are walked once
   (Quick Open, project search, go-to-definition) and appear in the tree as
   greyed, non-expandable “recursive link” nodes; links to other folders are
   followed normally
+- **Compacted folder chains**: a folder that contains only one subfolder (and no
+  files) is merged into a single row, e.g. `src/main/java`, until the chain
+  branches or reaches a file
 - `build`, `.gradle`, `.git`, `DerivedData`, `node_modules`, `.idea` hidden by
   default, toggle via **View → Show Ignored Folders** (expansion state preserved)
 - Tabbed editing with close buttons, `*` modified marker, Save/Discard/Cancel
@@ -72,8 +76,10 @@ C++17 · Qt 6 Widgets · QScintilla · CMake · Linux first.
 - **Recovery autosave** (opt-in in View): snapshots while dirty, startup
   prompt to reopen recovered text
 - **Editor font picker** (View → Editor Font...), persisted
+- **Dock placement** (View → Panel Position): panels open on the right by
+  default and can be switched to the bottom; persisted
 - Linux install ships a `.desktop` entry + icon
-- **Git diff view** (bottom dock + Git menu): working-tree and staged diffs,
+- **Git diff view** (right dock + Git menu): working-tree and staged diffs,
   project-wide or per-file, syntax-colored with the QScintilla diff lexer;
   appears only for git repositories
 - **Simple code intelligence**: identifier completion while typing
@@ -88,7 +94,7 @@ C++17 · Qt 6 Widgets · QScintilla · CMake · Linux first.
   Expo / monorepo, summarized in the status bar; the **Android**/**iOS** menus
   only appear for matching projects (iOS also requires macOS + Xcode), and the
   **Tasks** menu only when task presets exist
-- **Android panel** (bottom dock + Android menu): AVD list and start/stop,
+- **Android panel** (right dock + Android menu): AVD list and start/stop,
   device list with refresh, Build Debug / Test Debug / Install Debug / Run App,
   Start/Stop Logcat (filtered, capped, batched), and Stop Gradle Daemons;
   requires `ANDROID_HOME` and a project `gradlew` (debug builds only, no
@@ -97,7 +103,7 @@ C++17 · Qt 6 Widgets · QScintilla · CMake · Linux first.
   heap/worker flags plus a Linux systemd user scope that caps the whole build
   tree (Gradle + Kotlin daemons, test workers). Also applied to Console
   commands (toggle) and task presets; adjustable in the Android panel
-- **iOS panel** (macOS + Xcode only, bottom dock + iOS menu): simulator
+- **iOS panel** (macOS + Xcode only, right dock + iOS menu): simulator
   boot/shutdown, scheme list, Build Debug (`xcodebuild`), Install
   (`simctl install`), Run (`simctl launch`), and a filtered/batched log stream
 - Command line: `lite-studio [path]` — opens a folder, or a file plus its
@@ -158,7 +164,8 @@ lite-studio/
 Key decisions:
 
 - **No `QFileSystemModel`**: it uses a background thread and a file watcher.
-  The tree is a `QTreeWidget` populated one directory at a time on expand.
+  The tree is a `QTreeWidget` populated one directory at a time on expand,
+  probing one level ahead to merge single-child folder chains.
 - **Scintilla positions are byte offsets**, so the custom lexer styles in
   UTF-8 byte lengths, not QString character counts.
 - QScintilla does not own lexers; lexers are parented to their editor.

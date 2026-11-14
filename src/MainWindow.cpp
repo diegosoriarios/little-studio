@@ -68,7 +68,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_projectDock->setWidget(m_projectSearchPanel);
     m_projectDock->setFeatures(QDockWidget::DockWidgetClosable
         | QDockWidget::DockWidgetMovable);
-    addDockWidget(Qt::BottomDockWidgetArea, m_projectDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_projectDock);
     m_projectDock->hide();
 
     m_console = new ConsolePanel(this);
@@ -76,7 +76,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_consoleDock->setWidget(m_console);
     m_consoleDock->setFeatures(QDockWidget::DockWidgetClosable
         | QDockWidget::DockWidgetMovable);
-    addDockWidget(Qt::BottomDockWidgetArea, m_consoleDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_consoleDock);
     tabifyDockWidget(m_projectDock, m_consoleDock);
     m_consoleDock->hide();
     connect(m_consoleDock, &QDockWidget::visibilityChanged,
@@ -87,7 +87,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_androidDock->setWidget(m_androidPanel);
     m_androidDock->setFeatures(QDockWidget::DockWidgetClosable
         | QDockWidget::DockWidgetMovable);
-    addDockWidget(Qt::BottomDockWidgetArea, m_androidDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_androidDock);
     tabifyDockWidget(m_projectDock, m_androidDock);
     m_androidDock->hide();
     connect(m_androidPanel, &AndroidPanel::capabilitiesChanged,
@@ -98,7 +98,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_appleDock->setWidget(m_applePanel);
     m_appleDock->setFeatures(QDockWidget::DockWidgetClosable
         | QDockWidget::DockWidgetMovable);
-    addDockWidget(Qt::BottomDockWidgetArea, m_appleDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_appleDock);
     tabifyDockWidget(m_projectDock, m_appleDock);
     m_appleDock->hide();
     connect(m_applePanel, &ApplePanel::capabilitiesChanged,
@@ -126,7 +126,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_terminalDock->setWidget(m_terminal);
     m_terminalDock->setFeatures(QDockWidget::DockWidgetClosable
         | QDockWidget::DockWidgetMovable);
-    addDockWidget(Qt::BottomDockWidgetArea, m_terminalDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_terminalDock);
     tabifyDockWidget(m_projectDock, m_terminalDock);
     m_terminalDock->hide();
     connect(m_terminalDock, &QDockWidget::visibilityChanged,
@@ -158,7 +158,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_gitDock->setWidget(m_gitPanel);
     m_gitDock->setFeatures(QDockWidget::DockWidgetClosable
         | QDockWidget::DockWidgetMovable);
-    addDockWidget(Qt::BottomDockWidgetArea, m_gitDock);
+    addDockWidget(Qt::RightDockWidgetArea, m_gitDock);
     tabifyDockWidget(m_projectDock, m_gitDock);
     m_gitDock->hide();
     connect(m_gitPanel, &GitPanel::busyChanged, this,
@@ -169,6 +169,23 @@ MainWindow::MainWindow(QWidget *parent)
             statusBar()->showMessage(tr("Git: %1 — done").arg(description),
                                      3000);
     });
+
+    for (QDockWidget *dock : allDocks()) {
+        connect(dock, &QDockWidget::dockLocationChanged, this,
+                [this](Qt::DockWidgetArea area) {
+            if (area == Qt::NoDockWidgetArea)
+                return;
+            m_dockArea = (area == Qt::TopDockWidgetArea
+                    || area == Qt::BottomDockWidgetArea)
+                ? Qt::BottomDockWidgetArea : Qt::RightDockWidgetArea;
+            if (m_dockRightAction)
+                m_dockRightAction->setChecked(
+                    m_dockArea == Qt::RightDockWidgetArea);
+            if (m_dockBottomAction)
+                m_dockBottomAction->setChecked(
+                    m_dockArea == Qt::BottomDockWidgetArea);
+        });
+    }
 
     m_definitionCollector = new FileCollector(this);
     m_recoveryTimer = new QTimer(this);
@@ -788,6 +805,28 @@ void MainWindow::createMenus()
     });
     viewMenu->addAction(restartTerminalAction);
 #endif
+
+    viewMenu->addSeparator();
+
+    QMenu *panelPositionMenu = viewMenu->addMenu(tr("&Panel Position"));
+    auto *panelPositionGroup = new QActionGroup(this);
+    panelPositionGroup->setExclusive(true);
+
+    m_dockRightAction = panelPositionMenu->addAction(tr("Dock on &Right"));
+    m_dockRightAction->setCheckable(true);
+    m_dockRightAction->setChecked(m_dockArea == Qt::RightDockWidgetArea);
+    panelPositionGroup->addAction(m_dockRightAction);
+    connect(m_dockRightAction, &QAction::triggered, this, [this]() {
+        applyDockArea(Qt::RightDockWidgetArea, true);
+    });
+
+    m_dockBottomAction = panelPositionMenu->addAction(tr("Dock at &Bottom"));
+    m_dockBottomAction->setCheckable(true);
+    m_dockBottomAction->setChecked(m_dockArea == Qt::BottomDockWidgetArea);
+    panelPositionGroup->addAction(m_dockBottomAction);
+    connect(m_dockBottomAction, &QAction::triggered, this, [this]() {
+        applyDockArea(Qt::BottomDockWidgetArea, true);
+    });
 
     m_whitespaceAction = new QAction(tr("Show &Whitespace"), this);
     m_whitespaceAction->setCheckable(true);
@@ -1759,6 +1798,12 @@ void MainWindow::loadSettings()
     restoreGeometry(settings.value("ui/geometry").toByteArray());
     m_splitter->restoreState(settings.value("ui/splitter").toByteArray());
 
+    const QString dockArea =
+        settings.value(QStringLiteral("ui/dockarea"),
+                       QStringLiteral("right")).toString();
+    applyDockArea(dockArea == QStringLiteral("bottom")
+        ? Qt::BottomDockWidgetArea : Qt::RightDockWidgetArea, false);
+
     applyTheme(settings.value("ui/theme").toString() == QStringLiteral("light")
         ? Theme::Mode::Light : Theme::Mode::Dark);
 
@@ -1789,6 +1834,9 @@ void MainWindow::saveSettings()
     QSettings settings;
     settings.setValue("ui/geometry", saveGeometry());
     settings.setValue("ui/splitter", m_splitter->saveState());
+    settings.setValue(QStringLiteral("ui/dockarea"),
+        m_dockArea == Qt::BottomDockWidgetArea
+            ? QStringLiteral("bottom") : QStringLiteral("right"));
     settings.setValue("ui/theme", m_theme == Theme::Mode::Dark
         ? QStringLiteral("dark") : QStringLiteral("light"));
     settings.setValue("ui/wordwrap", m_wordWrap);
@@ -1799,6 +1847,72 @@ void MainWindow::saveSettings()
     settings.setValue("ui/fontdelta", m_fontDelta);
     settings.setValue("recent/folders", m_recentFolders);
     settings.setValue("recent/files", m_recentFiles);
+}
+
+QList<QDockWidget *> MainWindow::allDocks() const
+{
+    QList<QDockWidget *> docks;
+    docks << m_projectDock << m_consoleDock << m_androidDock << m_appleDock;
+#ifdef LITE_STUDIO_HAVE_QTERMWIDGET
+    docks << m_terminalDock;
+#endif
+    docks << m_gitDock;
+    return docks;
+}
+
+void MainWindow::applyDockArea(Qt::DockWidgetArea area, bool persist)
+{
+    if (area != Qt::RightDockWidgetArea && area != Qt::BottomDockWidgetArea)
+        area = Qt::RightDockWidgetArea;
+
+    const QList<QDockWidget *> docks = allDocks();
+    if (docks.isEmpty())
+        return;
+
+    QDockWidget *active = nullptr;
+    for (QDockWidget *dock : docks) {
+        if (dock->isVisible())
+            active = dock;
+        removeDockWidget(dock);
+    }
+
+    for (QDockWidget *dock : docks)
+        addDockWidget(area, dock);
+
+    for (int i = 1; i < docks.size(); ++i)
+        tabifyDockWidget(docks.first(), docks.at(i));
+
+    for (QDockWidget *dock : docks) {
+        if (dock != active)
+            dock->hide();
+    }
+    if (active) {
+        active->show();
+        active->raise();
+    }
+
+    if (area == Qt::RightDockWidgetArea) {
+        for (QDockWidget *dock : docks)
+            dock->setMinimumWidth(280);
+        resizeDocks({ docks.first() }, { 360 }, Qt::Horizontal);
+    } else {
+        for (QDockWidget *dock : docks)
+            dock->setMinimumWidth(0);
+        resizeDocks({ docks.first() }, { 240 }, Qt::Vertical);
+    }
+
+    m_dockArea = area;
+    if (m_dockRightAction)
+        m_dockRightAction->setChecked(area == Qt::RightDockWidgetArea);
+    if (m_dockBottomAction)
+        m_dockBottomAction->setChecked(area == Qt::BottomDockWidgetArea);
+
+    if (persist) {
+        QSettings settings;
+        settings.setValue(QStringLiteral("ui/dockarea"),
+            area == Qt::RightDockWidgetArea ? QStringLiteral("right")
+                                            : QStringLiteral("bottom"));
+    }
 }
 
 void MainWindow::addRecentFolder(const QString &path)

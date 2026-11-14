@@ -133,6 +133,9 @@ private:
     void updateWindowTitle();
     EditorTab *currentEditor() const;
 
+    QList<QDockWidget *> allDocks() const;
+    void applyDockArea(Qt::DockWidgetArea area, bool persist);
+
     FileTreeView *m_fileTree = nullptr;
     QTabWidget *m_tabs = nullptr;
     QSplitter *m_splitter = nullptr;
@@ -141,6 +144,7 @@ private:
     bool m_wordWrap = false;
     QStringList m_recentFolders;
     QStringList m_recentFiles;
+    Qt::DockWidgetArea m_dockArea = Qt::RightDockWidgetArea;
 
     QAction *m_saveAction = nullptr;
     QAction *m_closeTabAction = nullptr;
@@ -156,6 +160,8 @@ private:
     QAction *m_showIgnoredAction = nullptr;
     QAction *m_consoleAction = nullptr;
     QAction *m_syncTreeAction = nullptr;
+    QAction *m_dockRightAction = nullptr;
+    QAction *m_dockBottomAction = nullptr;
 
     QMenu *m_recentFoldersMenu = nullptr;
     QMenu *m_recentFilesMenu = nullptr;

@@ -4,8 +4,11 @@
 #include <QSet>
 #include <QTreeWidget>
 
+class QFileInfo;
+
 // Lazy-loading project file tree.
-// Directory contents are read only when the user expands a folder.
+// Directory contents are read when the user expands a folder, probing one
+// level ahead to merge single-child folder chains.
 // There is no file watcher and no background indexing.
 class FileTreeView : public QTreeWidget
 {
@@ -34,8 +37,18 @@ private:
     void populate(QTreeWidgetItem *dirItem);
     void addPlaceholder(QTreeWidgetItem *dirItem);
     void applyIgnoreFilter(QTreeWidgetItem *item);
-    QTreeWidgetItem *findChildItem(QTreeWidgetItem *parent,
-                                   const QString &name) const;
+
+    // Follows a single-child chain of directories and returns the merged label
+    // (e.g. "src/main/java") plus the final absolute and canonical paths.
+    QString compactDirectoryName(QTreeWidgetItem *parentItem,
+                                 const QFileInfo &first,
+                                 QString *absolutePath,
+                                 QString *canonicalPath) const;
+
+    // Finds the child whose path contains targetPath (merged rows may span
+    // several path segments).
+    QTreeWidgetItem *findChildForPath(QTreeWidgetItem *parent,
+                                      const QString &targetPath) const;
 
     // True when canonicalPath matches this item or any of its ancestors.
     static bool chainContainsCanonical(QTreeWidgetItem *item,
@@ -45,6 +58,7 @@ private:
     static constexpr int IsDirRole = Qt::UserRole + 1;
     static constexpr int LoadedRole = Qt::UserRole + 2;
     static constexpr int CanonicalRole = Qt::UserRole + 3;
+    static constexpr int MaxCompactDepth = 32;
 
     QString m_rootPath;
     bool m_showIgnored = false;

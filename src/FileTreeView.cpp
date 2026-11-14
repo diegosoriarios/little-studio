@@ -79,7 +79,7 @@ void FileTreeView::populate(QTreeWidgetItem *dirItem)
 
     for (const QFileInfo &entry : entries) {
         const bool isDir = entry.isDir();
-        const QString canonical = isDir ? entry.canonicalFilePath() : QString();
+        const QString canonical = entry.canonicalFilePath();
         const bool recursiveLink = isDir && !canonical.isEmpty()
             && chainContainsCanonical(dirItem, canonical);
 
@@ -89,6 +89,7 @@ void FileTreeView::populate(QTreeWidgetItem *dirItem)
             isDir ? QStyle::SP_DirIcon : QStyle::SP_FileIcon));
         child->setData(0, PathRole, entry.absoluteFilePath());
         child->setData(0, IsDirRole, isDir);
+        child->setData(0, CanonicalRole, canonical);
         child->setToolTip(0, entry.absoluteFilePath());
 
         if (!isDir) {
@@ -96,7 +97,6 @@ void FileTreeView::populate(QTreeWidgetItem *dirItem)
             continue;
         }
 
-        child->setData(0, CanonicalRole, canonical);
         if (recursiveLink) {
             // A symlink to this folder or one of its ancestors: show it so the
             // link is discoverable, but never allow expansion (it would
@@ -110,6 +110,16 @@ void FileTreeView::populate(QTreeWidgetItem *dirItem)
             continue;
         }
 
+        // Merge single-child directory chains into one row (e.g. src/main/java).
+        QString absolutePath = entry.absoluteFilePath();
+        QString canonicalPath = canonical;
+        const QString displayName = compactDirectoryName(
+            dirItem, entry, &absolutePath, &canonicalPath);
+        child->setText(0, displayName);
+        child->setData(0, PathRole, absolutePath);
+        child->setData(0, CanonicalRole, canonicalPath);
+        child->setToolTip(0, absolutePath);
+
         child->setData(0, LoadedRole, false);
         addPlaceholder(child);
         if (isIgnoredName(entry.fileName()))
@@ -117,6 +127,53 @@ void FileTreeView::populate(QTreeWidgetItem *dirItem)
     }
 
     dirItem->setData(0, LoadedRole, true);
+}
+
+QString FileTreeView::compactDirectoryName(QTreeWidgetItem *parentItem,
+                                           const QFileInfo &first,
+                                           QString *absolutePath,
+                                           QString *canonicalPath) const
+{
+    QString display = first.fileName();
+    QFileInfo current = first;
+    QString canonical = first.canonicalFilePath();
+    QSet<QString> seen;
+    if (!canonical.isEmpty())
+        seen.insert(canonical);
+
+    // Never merge through an ignored folder: it stays a normal (possibly
+    // hidden) row so the ignored-name toggle keeps working.
+    if (!isIgnoredName(first.fileName())) {
+        for (int depth = 0; depth < MaxCompactDepth; ++depth) {
+            const QFileInfoList entries = QDir(current.absoluteFilePath())
+                .entryInfoList(
+                    QDir::AllEntries | QDir::Hidden | QDir::NoDotAndDotDot,
+                    QDir::DirsFirst | QDir::Name | QDir::IgnoreCase);
+            if (entries.size() != 1)
+                break;
+
+            const QFileInfo only = entries.first();
+            if (!only.isDir() || isIgnoredName(only.fileName()))
+                break;
+
+            const QString onlyCanonical = only.canonicalFilePath();
+            if (onlyCanonical.isEmpty() || seen.contains(onlyCanonical)
+                || chainContainsCanonical(parentItem, onlyCanonical)) {
+                break;
+            }
+
+            seen.insert(onlyCanonical);
+            display += QLatin1Char('/') + only.fileName();
+            current = only;
+            canonical = onlyCanonical;
+        }
+    }
+
+    if (absolutePath)
+        *absolutePath = current.absoluteFilePath();
+    if (canonicalPath)
+        *canonicalPath = canonical;
+    return display;
 }
 
 bool FileTreeView::chainContainsCanonical(QTreeWidgetItem *item,
@@ -181,16 +238,26 @@ void FileTreeView::revealFile(const QString &path)
     QTreeWidgetItem *item = topLevelItem(0);
     if (!item)
         return;
-    const QStringList parts =
-        canonical.mid(root.size() + 1).split(QLatin1Char('/'));
-    for (const QString &part : parts) {
+
+    while (true) {
         if (!item->data(0, LoadedRole).toBool()) {
             populate(item);
             if (!item->data(0, LoadedRole).toBool())
                 return; // hit a non-directory along the way
         }
-        item = findChildItem(item, part);
-        if (!item)
+
+        QTreeWidgetItem *next = findChildForPath(item, canonical);
+        if (!next)
+            return;
+        item = next;
+
+        const QString itemPath =
+            item->data(0, CanonicalRole).toString().isEmpty()
+                ? item->data(0, PathRole).toString()
+                : item->data(0, CanonicalRole).toString();
+        if (itemPath == canonical)
+            break;
+        if (!item->data(0, IsDirRole).toBool())
             return;
     }
     if (!item || item->data(0, IsDirRole).toBool())
@@ -203,13 +270,28 @@ void FileTreeView::revealFile(const QString &path)
     scrollToItem(item);
 }
 
-QTreeWidgetItem *FileTreeView::findChildItem(QTreeWidgetItem *parent,
-                                              const QString &name) const
+QTreeWidgetItem *FileTreeView::findChildForPath(QTreeWidgetItem *parent,
+                                                 const QString &targetPath) const
 {
+    QTreeWidgetItem *best = nullptr;
+    int bestLength = -1;
     for (int i = 0; i < parent->childCount(); ++i) {
         QTreeWidgetItem *child = parent->child(i);
-        if (child->text(0) == name)
-            return child;
+        QString childPath = child->data(0, CanonicalRole).toString();
+        if (childPath.isEmpty())
+            childPath = child->data(0, PathRole).toString();
+        if (childPath.isEmpty())
+            continue;
+        if (targetPath != childPath
+            && !targetPath.startsWith(childPath + QLatin1Char('/'))) {
+            continue;
+        }
+        // Prefer the most specific match: a symlink to an ancestor can also
+        // prefix the target, but the deeper real path is the right one.
+        if (childPath.size() > bestLength) {
+            best = child;
+            bestLength = childPath.size();
+        }
     }
-    return nullptr;
+    return best;
 }

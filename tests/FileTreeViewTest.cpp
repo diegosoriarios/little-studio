@@ -64,6 +64,9 @@ int main(int argc, char *argv[])
     CHECK(writeFile(root + "/top.txt", "t\n"));
     CHECK(writeFile(root + "/sub/real.txt", "r\n"));
     CHECK(writeFile(outside + "/out.txt", "o\n"));
+    CHECK(writeFile(root + "/chain/one/two/file.txt", "c\n"));
+    CHECK(writeFile(root + "/mixed/sub/nested.txt", "n\n"));
+    CHECK(writeFile(root + "/mixed/file.txt", "m\n"));
 
 #if defined(Q_OS_UNIX)
     CHECK(QFile::link(root, root + "/sub/up"));       // ancestor link
@@ -111,6 +114,25 @@ int main(int argc, char *argv[])
     tree.revealFile(root + "/sub/real.txt");
     CHECK(tree.currentItem() != nullptr);
     CHECK(tree.currentItem()->text(0) == "real.txt");
+
+    // 6. Single-child folder chains merge into one row.
+    QTreeWidgetItem *chain = findChild(rootItem, "chain/one/two");
+    CHECK(chain != nullptr);
+    CHECK(findChild(rootItem, "chain") == nullptr);
+    chain->setExpanded(true);
+    CHECK(findChild(chain, "file.txt") != nullptr);
+
+    // 7. A folder with a file and a subfolder is not merged.
+    QTreeWidgetItem *mixed = findChild(rootItem, "mixed");
+    CHECK(mixed != nullptr);
+    CHECK(findChild(rootItem, "mixed/sub") == nullptr);
+    mixed->setExpanded(true);
+    CHECK(findChild(mixed, "sub") != nullptr);
+
+    // 8. revealFile descends through a merged row.
+    tree.revealFile(root + "/chain/one/two/file.txt");
+    CHECK(tree.currentItem() != nullptr);
+    CHECK(tree.currentItem()->text(0) == "file.txt");
 
     if (failures == 0) {
         std::printf("ALL FILETREE TESTS PASSED\n");
