@@ -19,11 +19,13 @@ class ConsolePanel;
 class EditorTab;
 class FileTreeView;
 class FindBar;
+class QIcon;
 class QLabel;
 class QDockWidget;
 class QMenu;
 class QSplitter;
 class QTabWidget;
+class QToolBar;
 class ProjectSearchPanel;
 class QuickOpen;
 class FileCollector;
@@ -61,6 +63,7 @@ private:
     void createMenus();
     void createCentralWidgets();
     void createStatusBar();
+    void createPanelNav();
     void loadSettings();
     void saveSettings();
 
@@ -81,6 +84,8 @@ private:
 
     void applyFontToEditors();
     QFont editorFont() const;
+    QIcon panelIcon(const QString &name) const;
+    void updatePanelIcons();
     void updateAndroidActions();
     void updateAppleActions();
     void updateGitActions();
@@ -133,7 +138,8 @@ private:
     void updateWindowTitle();
     EditorTab *currentEditor() const;
 
-    QList<QDockWidget *> allDocks() const;
+    QList<QDockWidget *> sideDocks() const;
+    void showDock(QDockWidget *dock);
     void applyDockArea(Qt::DockWidgetArea area, bool persist);
 
     FileTreeView *m_fileTree = nullptr;
@@ -162,6 +168,12 @@ private:
     QAction *m_syncTreeAction = nullptr;
     QAction *m_dockRightAction = nullptr;
     QAction *m_dockBottomAction = nullptr;
+    QToolBar *m_panelNav = nullptr;
+    QAction *m_projectNavAction = nullptr;
+    QAction *m_gitNavAction = nullptr;
+    QAction *m_androidNavAction = nullptr;
+    QAction *m_androidDetailsNavAction = nullptr;
+    QAction *m_appleNavAction = nullptr;
 
     QMenu *m_recentFoldersMenu = nullptr;
     QMenu *m_recentFilesMenu = nullptr;

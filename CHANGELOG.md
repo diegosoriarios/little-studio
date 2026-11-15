@@ -22,10 +22,14 @@ derived from git tags (`vX.Y.Z`).
   `check`.
 - Auto-indent on Return (View → Auto Indent, on by default): copies the
   previous line's indentation and follows the project's tab/space style.
+- Far-right icon rail for Terminal, Find in Project, Git, Android, Android
+  details (Logcat), iOS Simulator and Console. Icons follow the active theme.
 - GitHub Actions CI: Linux (GCC/Clang, Debug/Release), sanitizers, macOS.
 
 ### Changed
 
+- The embedded Terminal is now a fixed bottom dock and can stay open alongside
+  one right-side panel. Other panels still switch one at a time.
 - Tests are built by default and run through CTest.
 - macOS bundle identifier is now `io.github.diegosoriarios.LiteStudio`.
 - New application icon used for the window/taskbar, Linux hicolor themes,
@@ -33,6 +37,8 @@ derived from git tags (`vX.Y.Z`).
 
 ### Fixed
 
+- The embedded terminal now follows the active dark/light theme instead of
+  qtermwidget's default light-gray background.
 - Recursive symlinks no longer cause infinite traversal in Quick Open, project
   search, or go-to-definition; the tree shows them as disabled nodes.
 - Duplicate `kMaxDiffBytes` definition removed from `GitPanel.cpp`.

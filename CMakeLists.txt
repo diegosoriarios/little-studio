@@ -230,6 +230,27 @@ qt_add_resources(lite-studio "app-icons"
         packaging/icons/lite-studio-1024.png
 )
 
+qt_add_resources(lite-studio "panel-icons"
+    PREFIX "/panel-icons"
+    BASE "resources/panel-icons"
+    FILES
+        resources/panel-icons/android-logcat.png
+        resources/panel-icons/android.png
+        resources/panel-icons/console.png
+        resources/panel-icons/git.png
+        resources/panel-icons/ios.png
+        resources/panel-icons/search.png
+        resources/panel-icons/terminal.png
+)
+
+qt_add_resources(lite-studio "terminal-schemes"
+    PREFIX "/qtermwidget"
+    BASE "resources/qtermwidget"
+    FILES
+        resources/qtermwidget/color-schemes/LiteStudioDark.colorscheme
+        resources/qtermwidget/color-schemes/LiteStudioLight.colorscheme
+)
+
 if(QTERMWIDGET_INCLUDE_DIR AND QTERMWIDGET_LIBRARY)
     target_sources(lite-studio PRIVATE
         src/TerminalPanel.h

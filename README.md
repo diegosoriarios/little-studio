@@ -58,10 +58,12 @@ C++17 · Qt 6 Widgets · QScintilla · CMake · Linux first.
 - Tab context menu: Close, Close Others, Close All, Copy Path, Copy File Name
 - Settings persisted via QSettings: window geometry, splitter layout, theme,
   word wrap, ignored-folder toggle, tree sync, zoom, find options, recents
-- **Command console** (Ctrl+`, bottom dock): run shell commands in the project
-  root with streamed output, filter, session history and Stop
-- **Embedded terminal** (Ctrl+Shift+`, optional): a real shell in the project
-  root via qtermwidget; compiled in only when the library is present
+- **Command console** (Ctrl+`, right dock + icon rail): run shell commands in
+  the project root with streamed output, filter, session history and Stop
+- **Embedded terminal** (Ctrl+Shift+`, optional, bottom dock + icon rail): a
+  real shell in the project root via qtermwidget; compiled in only when the
+  library is present. It stays open alongside a right-side panel and follows
+  the active dark/light theme
 - **Editor productivity**: toggle comment (Ctrl+/), duplicate line (Ctrl+D),
   move lines (Alt+Up/Down), go to matching brace, bookmarks (Ctrl+F2/F2),
   reopen closed tab (Ctrl+Shift+T), middle-click close, whitespace/indent
@@ -76,12 +78,16 @@ C++17 · Qt 6 Widgets · QScintilla · CMake · Linux first.
 - **Recovery autosave** (opt-in in View): snapshots while dirty, startup
   prompt to reopen recovered text
 - **Editor font picker** (View → Editor Font...), persisted
-- **Dock placement** (View → Panel Position): panels open on the right by
-  default and can be switched to the bottom; persisted
+- **Panel navigation** (far-right icon rail): quick toggles for Terminal,
+  Find in Project, Git, Android, Android details (Logcat), iOS Simulator and
+  Console; icons follow the dark/light theme
+- **Dock placement** (View → Panel Position): side panels open one at a time
+  on the right by default, switchable to the bottom; the Terminal always stays
+  at the bottom and is independent. Placement is persisted
 - Linux install ships a `.desktop` entry + icon
-- **Git diff view** (right dock + Git menu): working-tree and staged diffs,
-  project-wide or per-file, syntax-colored with the QScintilla diff lexer;
-  appears only for git repositories
+- **Git diff view** (right dock + icon rail + Git menu): working-tree and
+  staged diffs, project-wide or per-file, syntax-colored with the QScintilla
+  diff lexer; appears only for git repositories
 - **Simple code intelligence**: identifier completion while typing
   (Ctrl+Space for explicit), a selectable dot-member list built from names used
   in the file, and **Go to Definition** (Ctrl+Click / F12, Alt+Left to go back)
@@ -94,17 +100,17 @@ C++17 · Qt 6 Widgets · QScintilla · CMake · Linux first.
   Expo / monorepo, summarized in the status bar; the **Android**/**iOS** menus
   only appear for matching projects (iOS also requires macOS + Xcode), and the
   **Tasks** menu only when task presets exist
-- **Android panel** (right dock + Android menu): AVD list and start/stop,
-  device list with refresh, Build Debug / Test Debug / Install Debug / Run App,
-  Start/Stop Logcat (filtered, capped, batched), and Stop Gradle Daemons;
-  requires `ANDROID_HOME` and a project `gradlew` (debug builds only, no
-  signing)
+- **Android panel** (right dock + icon rail + Android menu): AVD list and
+  start/stop, device list with refresh, Build Debug / Test Debug / Install
+  Debug / Run App, Start/Stop Logcat (filtered, capped, batched), and Stop
+  Gradle Daemons; the Android details icon opens the Logcat tab. Requires
+  `ANDROID_HOME` and a project `gradlew` (debug builds only, no signing)
 - **Build resource limits** (default: 2 CPUs, 4 GB, low priority): Gradle
   heap/worker flags plus a Linux systemd user scope that caps the whole build
   tree (Gradle + Kotlin daemons, test workers). Also applied to Console
   commands (toggle) and task presets; adjustable in the Android panel
-- **iOS panel** (macOS + Xcode only, right dock + iOS menu): simulator
-  boot/shutdown, scheme list, Build Debug (`xcodebuild`), Install
+- **iOS panel** (macOS + Xcode only, right dock + icon rail + iOS menu):
+  simulator boot/shutdown, scheme list, Build Debug (`xcodebuild`), Install
   (`simctl install`), Run (`simctl launch`), and a filtered/batched log stream
 - Command line: `lite-studio [path]` — opens a folder, or a file plus its
   parent; `--help` and `--version` work without a display
@@ -115,6 +121,8 @@ C++17 · Qt 6 Widgets · QScintilla · CMake · Linux first.
 lite-studio/
 ├── CMakeLists.txt
 ├── README.md
+├── resources/panel-icons/  Theme-tinted panel navigation icons
+├── resources/qtermwidget/  Light/dark terminal color schemes
 ├── src/
 │   ├── main.cpp            App setup, CLI argument
 │   ├── MainWindow.h/.cpp   Menus, tabs, status bar, find wiring, settings

@@ -14,6 +14,7 @@ class ProcessRunner;
 class QCheckBox;
 class QComboBox;
 class QPushButton;
+class QTabWidget;
 
 // Android run panel: emulator/device selection, debug build, install and
 // launch, plus Gradle daemon cleanup. All work is explicit and streamed
@@ -42,6 +43,7 @@ public:
     void runApp();
     void stopGradleDaemons();
     void toggleLogcat();
+    void showLogcat();
 
 signals:
     void capabilitiesChanged();
@@ -80,6 +82,7 @@ private:
     ProcessRunner *m_logcat = nullptr;
     ProcessOutputView *m_output = nullptr;
     ProcessOutputView *m_logView = nullptr;
+    QTabWidget *m_tabs = nullptr;
 
     QComboBox *m_avdCombo = nullptr;
     QComboBox *m_deviceCombo = nullptr;

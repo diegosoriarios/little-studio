@@ -1,6 +1,7 @@
 #include "TerminalPanel.h"
 
 #include <QDir>
+#include <QFile>
 #include <QVBoxLayout>
 
 #include <qtermwidget.h>
@@ -19,6 +20,27 @@ void TerminalPanel::setProjectRoot(const QString &root)
     m_root = root;
 }
 
+void TerminalPanel::setDarkTheme(bool dark)
+{
+    if (m_dark == dark)
+        return;
+    m_dark = dark;
+    applyColorScheme();
+}
+
+void TerminalPanel::applyColorScheme()
+{
+    if (!m_terminal)
+        return;
+
+    const QString scheme = QStringLiteral(
+        ":/qtermwidget/color-schemes/%1.colorscheme")
+        .arg(m_dark ? QStringLiteral("LiteStudioDark")
+                    : QStringLiteral("LiteStudioLight"));
+    if (QFile::exists(scheme))
+        m_terminal->setColorScheme(scheme);
+}
+
 void TerminalPanel::startShell()
 {
     if (!m_terminal) {
@@ -27,6 +49,7 @@ void TerminalPanel::startShell()
             m_root.isEmpty() ? QDir::homePath() : m_root);
         m_terminal->setSizePolicy(QSizePolicy::Expanding,
                                   QSizePolicy::Expanding);
+        applyColorScheme();
         layout()->addWidget(m_terminal);
         connect(m_terminal, &QTermWidget::finished, this,
                 [this]() { m_started = false; });

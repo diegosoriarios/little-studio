@@ -22,6 +22,7 @@
 
 #include <QAction>
 #include <QActionGroup>
+#include <QApplication>
 #include <QClipboard>
 #include <QCloseEvent>
 #include <QEvent>
@@ -33,6 +34,7 @@
 #include <QFontDatabase>
 #include <QFontComboBox>
 #include <QGuiApplication>
+#include <QIcon>
 #include <QInputDialog>
 #include <QListWidget>
 #include <QKeySequence>
@@ -42,6 +44,8 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QPainter>
+#include <QPixmap>
 #include <QPushButton>
 #include <QSettings>
 #include <QSpinBox>
@@ -51,6 +55,7 @@
 #include <QMouseEvent>
 #include <QTabWidget>
 #include <QTimer>
+#include <QToolBar>
 #include <QVBoxLayout>
 
 MainWindow::MainWindow(QWidget *parent)
@@ -126,8 +131,9 @@ MainWindow::MainWindow(QWidget *parent)
     m_terminalDock->setWidget(m_terminal);
     m_terminalDock->setFeatures(QDockWidget::DockWidgetClosable
         | QDockWidget::DockWidgetMovable);
-    addDockWidget(Qt::RightDockWidgetArea, m_terminalDock);
-    tabifyDockWidget(m_projectDock, m_terminalDock);
+    addDockWidget(Qt::BottomDockWidgetArea, m_terminalDock);
+    m_terminalDock->setAllowedAreas(Qt::BottomDockWidgetArea);
+    m_terminalDock->setMinimumHeight(120);
     m_terminalDock->hide();
     connect(m_terminalDock, &QDockWidget::visibilityChanged,
             m_terminalAction, &QAction::setChecked);
@@ -170,7 +176,7 @@ MainWindow::MainWindow(QWidget *parent)
                                      3000);
     });
 
-    for (QDockWidget *dock : allDocks()) {
+    for (QDockWidget *dock : sideDocks()) {
         connect(dock, &QDockWidget::dockLocationChanged, this,
                 [this](Qt::DockWidgetArea area) {
             if (area == Qt::NoDockWidgetArea)
@@ -248,6 +254,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_quickOpen, &QuickOpen::fileActivated, this,
             [this](const QString &path) { openFile(path); });
 
+    createPanelNav();
     loadSettings();
     updateStatus();
     updateActions();
@@ -609,8 +616,7 @@ void MainWindow::createMenus()
             statusBar()->showMessage(tr("Open a folder first"), 2000);
             return;
         }
-        m_projectDock->show();
-        m_projectDock->raise();
+        showDock(m_projectDock);
         m_projectSearchPanel->openForRoot(m_fileTree->rootPath());
     });
     editMenu->addAction(findInProjectAction);
@@ -630,8 +636,7 @@ void MainWindow::createMenus()
 
     QAction *showAndroidAction = m_androidMenu->addAction(tr("Show Android &Panel"));
     connect(showAndroidAction, &QAction::triggered, this, [this]() {
-        m_androidDock->show();
-        m_androidDock->raise();
+        showDock(m_androidDock);
     });
 
     m_androidMenu->addSeparator();
@@ -643,22 +648,19 @@ void MainWindow::createMenus()
 
     m_androidBuildAction = m_androidMenu->addAction(tr("&Build Debug"));
     connect(m_androidBuildAction, &QAction::triggered, this, [this]() {
-        m_androidDock->show();
-        m_androidDock->raise();
+        showDock(m_androidDock);
         m_androidPanel->buildDebug();
     });
 
     m_androidInstallAction = m_androidMenu->addAction(tr("&Install Debug"));
     connect(m_androidInstallAction, &QAction::triggered, this, [this]() {
-        m_androidDock->show();
-        m_androidDock->raise();
+        showDock(m_androidDock);
         m_androidPanel->installDebug();
     });
 
     m_androidRunAction = m_androidMenu->addAction(tr("&Run App"));
     connect(m_androidRunAction, &QAction::triggered, this, [this]() {
-        m_androidDock->show();
-        m_androidDock->raise();
+        showDock(m_androidDock);
         m_androidPanel->runApp();
     });
 
@@ -680,8 +682,7 @@ void MainWindow::createMenus()
 
     QAction *showIosAction = m_iosMenu->addAction(tr("Show &iOS Panel"));
     connect(showIosAction, &QAction::triggered, this, [this]() {
-        m_appleDock->show();
-        m_appleDock->raise();
+        showDock(m_appleDock);
     });
 
     m_iosMenu->addSeparator();
@@ -693,22 +694,19 @@ void MainWindow::createMenus()
 
     m_appleBuildAction = m_iosMenu->addAction(tr("&Build Debug"));
     connect(m_appleBuildAction, &QAction::triggered, this, [this]() {
-        m_appleDock->show();
-        m_appleDock->raise();
+        showDock(m_appleDock);
         m_applePanel->buildDebug();
     });
 
     m_appleInstallAction = m_iosMenu->addAction(tr("&Install"));
     connect(m_appleInstallAction, &QAction::triggered, this, [this]() {
-        m_appleDock->show();
-        m_appleDock->raise();
+        showDock(m_appleDock);
         m_applePanel->installApp();
     });
 
     m_appleRunAction = m_iosMenu->addAction(tr("&Run App"));
     connect(m_appleRunAction, &QAction::triggered, this, [this]() {
-        m_appleDock->show();
-        m_appleDock->raise();
+        showDock(m_appleDock);
         m_applePanel->runApp();
     });
 
@@ -720,26 +718,22 @@ void MainWindow::createMenus()
     m_gitMenu = menuBar()->addMenu(tr("&Git"));
     QAction *showGitAction = m_gitMenu->addAction(tr("Show &Git Panel"));
     connect(showGitAction, &QAction::triggered, this, [this]() {
-        m_gitDock->show();
-        m_gitDock->raise();
+        showDock(m_gitDock);
     });
     m_gitMenu->addSeparator();
     m_gitRefreshAction = m_gitMenu->addAction(tr("&Refresh"));
     connect(m_gitRefreshAction, &QAction::triggered, this, [this]() {
-        m_gitDock->show();
-        m_gitDock->raise();
+        showDock(m_gitDock);
         m_gitPanel->refreshTargets();
     });
     m_gitWorkingTreeAction = m_gitMenu->addAction(tr("Diff &Working Tree"));
     connect(m_gitWorkingTreeAction, &QAction::triggered, this, [this]() {
-        m_gitDock->show();
-        m_gitDock->raise();
+        showDock(m_gitDock);
         m_gitPanel->diffWorkingTree();
     });
     m_gitStagedAction = m_gitMenu->addAction(tr("Diff &Staged (HEAD)"));
     connect(m_gitStagedAction, &QAction::triggered, this, [this]() {
-        m_gitDock->show();
-        m_gitDock->raise();
+        showDock(m_gitDock);
         m_gitPanel->diffStaged();
     });
     m_gitMenu->menuAction()->setVisible(false);
@@ -773,8 +767,7 @@ void MainWindow::createMenus()
     m_consoleAction->setShortcut(QKeySequence("Ctrl+`"));
     connect(m_consoleAction, &QAction::toggled, this, [this](bool on) {
         if (on) {
-            m_consoleDock->show();
-            m_consoleDock->raise();
+            showDock(m_consoleDock);
             m_console->focusInput();
         } else {
             m_consoleDock->hide();
@@ -790,6 +783,7 @@ void MainWindow::createMenus()
         if (on) {
             m_terminalDock->show();
             m_terminalDock->raise();
+            resizeDocks({ m_terminalDock }, { 220 }, Qt::Vertical);
             m_terminal->startShell();
         } else {
             m_terminalDock->hide();
@@ -801,6 +795,7 @@ void MainWindow::createMenus()
     connect(restartTerminalAction, &QAction::triggered, this, [this]() {
         m_terminalDock->show();
         m_terminalDock->raise();
+        resizeDocks({ m_terminalDock }, { 220 }, Qt::Vertical);
         m_terminal->restartShell();
     });
     viewMenu->addAction(restartTerminalAction);
@@ -979,6 +974,104 @@ void MainWindow::createMenus()
     });
 }
 
+void MainWindow::createPanelNav()
+{
+    m_panelNav = new QToolBar(tr("Panels"), this);
+    m_panelNav->setObjectName(QStringLiteral("panelNav"));
+    m_panelNav->setMovable(false);
+    m_panelNav->setFloatable(false);
+    m_panelNav->setAllowedAreas(Qt::RightToolBarArea);
+    m_panelNav->setOrientation(Qt::Vertical);
+    m_panelNav->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    m_panelNav->setIconSize(QSize(20, 20));
+    m_panelNav->setContextMenuPolicy(Qt::PreventContextMenu);
+
+#ifdef LITE_STUDIO_HAVE_QTERMWIDGET
+    m_terminalAction->setToolTip(tr("Terminal (Ctrl+Shift+`)"));
+    m_panelNav->addAction(m_terminalAction);
+    m_panelNav->addSeparator();
+#endif
+
+    m_projectNavAction = new QAction(tr("Find in Project"), this);
+    m_projectNavAction->setCheckable(true);
+    m_projectNavAction->setToolTip(tr("Find in Project (Ctrl+Shift+F)"));
+    connect(m_projectNavAction, &QAction::toggled, this, [this](bool on) {
+        if (!on) {
+            m_projectDock->hide();
+            return;
+        }
+        if (m_fileTree->rootPath().isEmpty()) {
+            statusBar()->showMessage(tr("Open a folder first"), 2000);
+            m_projectNavAction->setChecked(false);
+            return;
+        }
+        showDock(m_projectDock);
+        m_projectSearchPanel->openForRoot(m_fileTree->rootPath());
+    });
+    connect(m_projectDock, &QDockWidget::visibilityChanged,
+            m_projectNavAction, &QAction::setChecked);
+    m_panelNav->addAction(m_projectNavAction);
+
+    m_gitNavAction = new QAction(tr("Git"), this);
+    m_gitNavAction->setCheckable(true);
+    m_gitNavAction->setToolTip(tr("Git"));
+    connect(m_gitNavAction, &QAction::toggled, this, [this](bool on) {
+        if (on)
+            showDock(m_gitDock);
+        else
+            m_gitDock->hide();
+    });
+    connect(m_gitDock, &QDockWidget::visibilityChanged,
+            m_gitNavAction, &QAction::setChecked);
+    m_panelNav->addAction(m_gitNavAction);
+
+    m_androidNavAction = new QAction(tr("Android"), this);
+    m_androidNavAction->setCheckable(true);
+    m_androidNavAction->setToolTip(tr("Android"));
+    connect(m_androidNavAction, &QAction::toggled, this, [this](bool on) {
+        if (on)
+            showDock(m_androidDock);
+        else
+            m_androidDock->hide();
+    });
+    connect(m_androidDock, &QDockWidget::visibilityChanged,
+            m_androidNavAction, &QAction::setChecked);
+    m_panelNav->addAction(m_androidNavAction);
+
+    m_androidDetailsNavAction = new QAction(tr("Android Details"), this);
+    m_androidDetailsNavAction->setToolTip(tr("Android details (Logcat)"));
+    connect(m_androidDetailsNavAction, &QAction::triggered, this, [this]() {
+        showDock(m_androidDock);
+        m_androidPanel->showLogcat();
+    });
+    m_panelNav->addAction(m_androidDetailsNavAction);
+
+    m_appleNavAction = new QAction(tr("iOS Simulator"), this);
+    m_appleNavAction->setCheckable(true);
+    m_appleNavAction->setToolTip(tr("iOS Simulator"));
+    connect(m_appleNavAction, &QAction::toggled, this, [this](bool on) {
+        if (on)
+            showDock(m_appleDock);
+        else
+            m_appleDock->hide();
+    });
+    connect(m_appleDock, &QDockWidget::visibilityChanged,
+            m_appleNavAction, &QAction::setChecked);
+    m_panelNav->addAction(m_appleNavAction);
+
+    m_panelNav->addSeparator();
+    m_consoleAction->setToolTip(tr("Console (Ctrl+`)"));
+    m_panelNav->addAction(m_consoleAction);
+
+    m_gitNavAction->setVisible(false);
+    m_androidNavAction->setVisible(false);
+    m_androidDetailsNavAction->setVisible(false);
+    m_appleNavAction->setVisible(false);
+
+    updatePanelIcons();
+    addToolBar(Qt::RightToolBarArea, m_panelNav);
+}
+
 void MainWindow::applyTheme(Theme::Mode mode)
 {
     m_theme = mode;
@@ -990,6 +1083,11 @@ void MainWindow::applyTheme(Theme::Mode mode)
             editor->setTheme(mode);
     }
     m_gitPanel->setTheme(static_cast<int>(mode));
+#ifdef LITE_STUDIO_HAVE_QTERMWIDGET
+    if (m_terminal)
+        m_terminal->setDarkTheme(mode == Theme::Mode::Dark);
+#endif
+    updatePanelIcons();
 }
 
 void MainWindow::openFolder()
@@ -1039,6 +1137,8 @@ void MainWindow::openFolderFromPath(const QString &path)
     m_gitPanel->setProject(path, gitOk);
     if (m_gitMenu)
         m_gitMenu->menuAction()->setVisible(gitOk);
+    if (m_gitNavAction)
+        m_gitNavAction->setVisible(gitOk);
     if (!gitOk)
         m_gitDock->hide();
     loadTasks();
@@ -1714,12 +1814,54 @@ QFont MainWindow::editorFont() const
     return font;
 }
 
+QIcon MainWindow::panelIcon(const QString &name) const
+{
+    const QPixmap source(
+        QStringLiteral(":/panel-icons/%1.png").arg(name));
+    if (source.isNull())
+        return QIcon();
+
+    QPixmap tinted(source.size());
+    tinted.fill(Qt::transparent);
+    QPainter painter(&tinted);
+    painter.drawPixmap(0, 0, source);
+    painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+    painter.fillRect(tinted.rect(), QApplication::palette().color(QPalette::WindowText));
+    painter.end();
+    return QIcon(tinted);
+}
+
+void MainWindow::updatePanelIcons()
+{
+    if (m_projectNavAction)
+        m_projectNavAction->setIcon(panelIcon(QStringLiteral("search")));
+    if (m_gitNavAction)
+        m_gitNavAction->setIcon(panelIcon(QStringLiteral("git")));
+    if (m_androidNavAction)
+        m_androidNavAction->setIcon(panelIcon(QStringLiteral("android")));
+    if (m_androidDetailsNavAction)
+        m_androidDetailsNavAction->setIcon(
+            panelIcon(QStringLiteral("android-logcat")));
+    if (m_appleNavAction)
+        m_appleNavAction->setIcon(panelIcon(QStringLiteral("ios")));
+    if (m_consoleAction)
+        m_consoleAction->setIcon(panelIcon(QStringLiteral("console")));
+#ifdef LITE_STUDIO_HAVE_QTERMWIDGET
+    if (m_terminalAction)
+        m_terminalAction->setIcon(panelIcon(QStringLiteral("terminal")));
+#endif
+}
+
 void MainWindow::updateAndroidActions()
 {
+    const bool detected = m_projectInfo.hasAndroid && m_androidPanel;
     if (m_androidMenu)
         m_androidMenu->menuAction()->setVisible(m_projectInfo.hasAndroid);
+    if (m_androidNavAction)
+        m_androidNavAction->setVisible(detected);
+    if (m_androidDetailsNavAction)
+        m_androidDetailsNavAction->setVisible(detected);
 
-    const bool detected = m_projectInfo.hasAndroid && m_androidPanel;
     if (!detected) {
         for (QAction *action : { m_androidRefreshAction, m_androidBuildAction,
                                  m_androidInstallAction, m_androidRunAction,
@@ -1743,6 +1885,8 @@ void MainWindow::updateAppleActions()
 
     if (m_iosMenu)
         m_iosMenu->menuAction()->setVisible(available);
+    if (m_appleNavAction)
+        m_appleNavAction->setVisible(available);
 
     if (!available) {
         if (m_appleDock)
@@ -1849,15 +1993,22 @@ void MainWindow::saveSettings()
     settings.setValue("recent/files", m_recentFiles);
 }
 
-QList<QDockWidget *> MainWindow::allDocks() const
+QList<QDockWidget *> MainWindow::sideDocks() const
 {
-    QList<QDockWidget *> docks;
-    docks << m_projectDock << m_consoleDock << m_androidDock << m_appleDock;
-#ifdef LITE_STUDIO_HAVE_QTERMWIDGET
-    docks << m_terminalDock;
-#endif
-    docks << m_gitDock;
-    return docks;
+    return { m_projectDock, m_consoleDock, m_androidDock, m_appleDock,
+             m_gitDock };
+}
+
+void MainWindow::showDock(QDockWidget *dock)
+{
+    if (!dock)
+        return;
+    for (QDockWidget *other : sideDocks()) {
+        if (other && other != dock)
+            other->hide();
+    }
+    dock->show();
+    dock->raise();
 }
 
 void MainWindow::applyDockArea(Qt::DockWidgetArea area, bool persist)
@@ -1865,13 +2016,13 @@ void MainWindow::applyDockArea(Qt::DockWidgetArea area, bool persist)
     if (area != Qt::RightDockWidgetArea && area != Qt::BottomDockWidgetArea)
         area = Qt::RightDockWidgetArea;
 
-    const QList<QDockWidget *> docks = allDocks();
+    const QList<QDockWidget *> docks = sideDocks();
     if (docks.isEmpty())
         return;
 
     QDockWidget *active = nullptr;
     for (QDockWidget *dock : docks) {
-        if (dock->isVisible())
+        if (!dock->isHidden())
             active = dock;
         removeDockWidget(dock);
     }
@@ -1886,10 +2037,8 @@ void MainWindow::applyDockArea(Qt::DockWidgetArea area, bool persist)
         if (dock != active)
             dock->hide();
     }
-    if (active) {
-        active->show();
-        active->raise();
-    }
+    if (active)
+        showDock(active);
 
     if (area == Qt::RightDockWidgetArea) {
         for (QDockWidget *dock : docks)
@@ -1978,8 +2127,7 @@ void MainWindow::rebuildTasksMenu()
     for (const TaskPreset &task : m_tasks) {
         QAction *action = m_tasksMenu->addAction(task.name);
         connect(action, &QAction::triggered, this, [this, task]() {
-            m_consoleDock->show();
-            m_consoleDock->raise();
+            showDock(m_consoleDock);
             m_console->runTask(task);
         });
     }

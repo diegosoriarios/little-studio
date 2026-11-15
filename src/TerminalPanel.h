@@ -16,6 +16,7 @@ public:
     explicit TerminalPanel(QWidget *parent = nullptr);
 
     void setProjectRoot(const QString &root);
+    void setDarkTheme(bool dark);
     void startShell();
     void restartShell();
     void focusTerminal();
@@ -23,9 +24,12 @@ public:
     bool isStarted() const { return m_started; }
 
 private:
+    void applyColorScheme();
+
     QTermWidget *m_terminal = nullptr;
     QString m_root;
     bool m_started = false;
+    bool m_dark = true;
 };
 
 #endif

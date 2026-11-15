@@ -91,11 +91,11 @@ AndroidPanel::AndroidPanel(QWidget *parent)
     layout->setSpacing(2);
     layout->addLayout(row1);
     layout->addLayout(row2);
-    auto *tabs = new QTabWidget(this);
-    tabs->setDocumentMode(true);
-    tabs->addTab(m_output, tr("Output"));
-    tabs->addTab(m_logView, tr("Logcat"));
-    layout->addWidget(tabs, 1);
+    m_tabs = new QTabWidget(this);
+    m_tabs->setDocumentMode(true);
+    m_tabs->addTab(m_output, tr("Output"));
+    m_tabs->addTab(m_logView, tr("Logcat"));
+    layout->addWidget(m_tabs, 1);
     setLayout(layout);
 
     connect(m_startButton, &QPushButton::clicked,
@@ -475,6 +475,12 @@ void AndroidPanel::toggleLogcat()
                       QStringLiteral("logcat") },
                     m_androidRoot);
     updateActions();
+}
+
+void AndroidPanel::showLogcat()
+{
+    if (m_tabs)
+        m_tabs->setCurrentIndex(1);
 }
 
 void AndroidPanel::stopLogcat()
