@@ -25,6 +25,10 @@ derived from git tags (`vX.Y.Z`).
 - Far-right icon rail for Terminal, Find in Project, Git, Android, Android
   details (Logcat), iOS Simulator and Console. Icons follow the active theme.
 - GitHub Actions CI: Linux (GCC/Clang, Debug/Release), sanitizers, macOS.
+- macOS build and iOS panel validated with Homebrew Qt 6.12/QScintilla 2.14,
+  Xcode 26.2 and iOS 26.3 simulators; the generated `.app` launches outside
+  the build tree and the unsigned `.dmg` passes `codesign --verify`. README
+  now documents the macOS prerequisites.
 
 ### Changed
 
@@ -44,6 +48,11 @@ derived from git tags (`vX.Y.Z`).
 - Duplicate `kMaxDiffBytes` definition removed from `GitPanel.cpp`.
 - Dot-member completion no longer renders every member in a single horizontal
   row after the document word-completion list has been shown.
+- Project search no longer emits a Qt `QObject::connect` warning on startup;
+  the results list is now connected after it is constructed.
+- macOS builds no longer assume the embedded terminal is available: Homebrew
+  has no `qtermwidget` formula, so the Terminal tab is omitted (Console still
+  works).
 
 ## [0.1.0] - 2026-11-14
 

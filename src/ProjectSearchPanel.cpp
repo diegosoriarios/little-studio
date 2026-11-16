@@ -45,14 +45,14 @@ ProjectSearchPanel::ProjectSearchPanel(QWidget *parent)
             this, &ProjectSearchPanel::replaceInResults);
     connect(m_replaceInput, &QLineEdit::textChanged, this,
             [this](const QString &) { updateActions(); });
-    connect(m_results, &QListWidget::itemSelectionChanged, this,
-            [this]() { updateActions(); });
 
     m_status = new QLabel(this);
 
     m_results = new QListWidget(this);
     m_results->setUniformItemSizes(true);
     m_results->setSelectionMode(QAbstractItemView::SingleSelection);
+    connect(m_results, &QListWidget::itemSelectionChanged, this,
+            [this]() { updateActions(); });
     connect(m_results, &QListWidget::itemActivated, this,
             [this](QListWidgetItem *item) {
         emit fileActivated(item->data(Qt::UserRole).toString(),

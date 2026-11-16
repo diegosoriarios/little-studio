@@ -203,6 +203,17 @@ sudo apt install -y cmake ninja-build g++ qt6-base-dev libqscintilla2-qt6-dev
 sudo pacman -S --needed cmake ninja gcc qt6-base qscintilla-qt6
 ```
 
+**macOS:**
+```bash
+brew install cmake ninja qt qscintilla2
+# required for the iOS panel: full Xcode (not just Command Line Tools)
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+```
+
+Homebrew has no `qtermwidget` formula, so the embedded Terminal tab is omitted
+on macOS; the Console tab works. The iOS panel needs Xcode with at least one
+iOS simulator runtime installed.
+
 **No root?** The build also works with local libraries: download the RPMs
 (`dnf download qscintilla-qt6-devel qtermwidget-devel`) and extract them into
 `.deps/` (`rpm2cpio pkg.rpm | cpio -idm -D .deps`). CMake checks `.deps/`
@@ -218,6 +229,17 @@ cmake --build build
 ./build/lite-studio ~/projects/demo     # open a folder
 ./build/lite-studio src/Main.kt         # open a file + its parent folder
 ```
+
+On macOS the Homebrew prefixes must be passed explicitly; the result is an
+`.app` bundle:
+```bash
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_PREFIX_PATH="$(brew --prefix qt);$(brew --prefix qscintilla2)"
+cmake --build build
+open build/lite-studio.app
+```
+`packaging/macos/build-dmg.sh` builds the Release bundle, deploys the Qt and
+QScintilla libraries, and creates an unsigned (ad-hoc signed) `.dmg`.
 
 Release:
 ```bash
@@ -283,8 +305,8 @@ options default to `OFF` for local builds. Sanitizer runs set
 - Drag and drop, file-tree context-menu operations
 - Auto-formatting (not implemented)
 
-Remaining release, macOS verification/signing, and quality-tooling work is
-tracked in [NEXT-STEPS.md](NEXT-STEPS.md).
+Remaining macOS signing/notarization, release housekeeping, and quality-tooling
+work is tracked in [NEXT-STEPS.md](NEXT-STEPS.md).
 
 ## Roadmap ideas (later stages)
 

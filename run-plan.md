@@ -1,6 +1,6 @@
 # Run Support (Android + iOS) — Plan
 
-Status: **Stages 8–14 + Git diff view (Stage 15) implemented** (Stage 11 runtime verification pending on macOS). Stage 14 = editor quick wins (comment toggle, line ops, bookmarks, whitespace/guides, EOL conversion, trim/final newline), symbol outline, session restore, auto-reload, .editorconfig indentation, font picker, Linux packaging, replace-in-project, and opt-in autosave/recovery. Heuristic code intelligence (no LSP) shipped in Stage 13. Remaining future work: remote Mac/SSH, iOS physical devices, release archives, AVD creation, LSP.
+Status: **Stages 8–15 implemented and verified on macOS** (Stage 11 checked against Xcode 26.2, iOS 26.3 simulators, and Homebrew Qt 6.12/QScintilla 2.14). Stage 14 = editor quick wins (comment toggle, line ops, bookmarks, whitespace/guides, EOL conversion, trim/final newline), symbol outline, session restore, auto-reload, .editorconfig indentation, font picker, Linux packaging, replace-in-project, and opt-in autosave/recovery. Heuristic code intelligence (no LSP) shipped in Stage 13. Remaining future work: remote Mac/SSH, iOS physical devices, release archives, AVD creation, LSP.
 
 Goal: add a lightweight, opt-in run layer to Lite Studio — build, install, run,
 manage devices/emulators/simulators and stream logs — while keeping the app
@@ -68,11 +68,14 @@ toolchains (Gradle daemon, emulators) are child processes, never app memory.
 | `java` | `/usr/bin/java` |
 | `xcodebuild` / `xcrun` / `simctl` | **absent** (macOS-only) |
 
-### macOS (to verify during Stage 11)
+### macOS (verified during Stage 11)
 
-- Xcode + Command Line Tools installed; `xcodebuild -version` works
-- Qt 6 and QScintilla available (Homebrew: `qt`, `qscintilla2`)
-- At least one iOS simulator runtime installed
+- Xcode 26.2 selected as the active developer directory; `xcodebuild -version`
+  and `xcrun simctl` work. Command Line Tools alone are not enough: `simctl`
+  is unavailable until `xcode-select` points at Xcode.
+- Homebrew `qt` 6.12, `qscintilla2` 2.14 and `cmake`/`ninja` installed.
+- iOS 26.3 simulator runtime installed with iPhone/iPad devices.
+- Homebrew has no `qtermwidget` formula, so macOS builds omit the Terminal tab.
 
 ## 4. Confirmed decisions
 
@@ -327,23 +330,29 @@ Details:
   changing it never restarts `adb logcat` / `log stream`. Logcat lines are
   batched (120 ms) before hitting the view to keep bursts smooth.
 
-## 11. macOS build prerequisites
+## 11. macOS build prerequisites (verified)
 
 ```bash
 brew install qt qscintilla2 cmake ninja
-# optional embedded terminal (if the formula is available):
-brew install qtermwidget
 ```
 
-- CMake needs Homebrew hints for Qt/QScintilla discovery, e.g.
-  `${HOMEBREW_PREFIX}/include`, `${HOMEBREW_PREFIX}/lib`
-  (`/opt/homebrew` on Apple Silicon, `/usr/local` on Intel). Verify the
-  QScintilla header layout (`Qsci/...`) and library name (`qscintilla2_qt6`)
-  during Stage 11.
-- Build a proper app bundle: `MACOSX_BUNDLE` + bundle identifier metadata via
-  `qt_add_executable`/`set_target_properties`.
-- `xcodebuild` requires the Xcode license to be accepted and CLT selected
-  (`xcode-select -p`); surface the error output if either is missing.
+- Configure with the Homebrew prefixes:
+  `-DCMAKE_PREFIX_PATH="$(brew --prefix qt);$(brew --prefix qscintilla2)"`.
+  CMake also searches `/opt/homebrew` (Apple Silicon) and `/usr/local`
+  (Intel) by default.
+- Verified layout: headers in
+  `/opt/homebrew/opt/qscintilla2/include/Qsci`, library
+  `libqscintilla2_qt6.dylib`. The `Qsci/...` include names and the
+  `qscintilla2_qt6` library name in `CMakeLists.txt` match the formula.
+- The build produces `build/lite-studio.app` with the bundle identifier
+  `io.github.diegosoriarios.LiteStudio` and `LiteStudio.icns`.
+- The iOS panel needs full Xcode selected, not just Command Line Tools:
+  `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`. With CLT
+  selected, `xcrun simctl` fails with an explicit "requires Xcode" error.
+  Xcode's license must be accepted and at least one iOS simulator runtime
+  installed.
+- Homebrew no longer ships `qtermwidget`, so the Terminal tab is omitted on
+  macOS. The Console tab remains available.
 
 ## 12. Tests (headless, no SDK/device/simulator needed)
 
@@ -441,7 +450,7 @@ all headless tests passing, and idle CPU still ~0%.
   changes; closing the app terminates logcat/emulator children
 - README/constraints update and idle-CPU verification
 
-### Stage 11 — Apple tooling (macOS) — **implemented, pending Mac verification**
+### Stage 11 — Apple tooling (macOS) — **done and verified**
 - `AppleTooling`: tool discovery, `simctl`/`xcodebuild -list`/`-showBuildSettings`
   parsers, workspace/project discovery
 - `ApplePanel` dock tab + iOS menu: simulator list/boot/shutdown, scheme list,
@@ -452,7 +461,23 @@ all headless tests passing, and idle CPU still ~0%.
   required. `apple-test` runs on Linux.
 - CMake: Homebrew prefix discovery for Qt/QScintilla and `MACOSX_BUNDLE`
   metadata are in place (guarded by `APPLE`)
-- Remaining: a first real run on a Mac (see macOS build prerequisites)
+- Verified on macOS 26.5 (arm64) with Xcode 26.2, iOS 26.3 simulators and
+  Homebrew Qt 6.12/QScintilla 2.14/CMake 4.5:
+  - Homebrew Qt/QScintilla discovery, Debug build and all 13 `ctest` suites
+  - A generated UIKit fixture (XcodeGen, `/tmp`) populated the scheme and
+    simulator lists; Build Debug, Install, Run and the filtered log stream
+    completed with exit 0, and `-showBuildSettings -json` resolved the app
+    path and bundle id
+  - Simulator shutdown from the panel; `simctl boot`/`bootstatus` for the same
+    device was verified from the CLI
+  - The `.app` copied outside the build tree launched and showed the iOS panel;
+    `build-dmg.sh` produced an ad-hoc signed DMG whose app passed
+    `codesign --verify --deep --strict` (launching the DMG copy outside the
+    tree is still to be confirmed in a GUI session)
+- Found during validation: the Homebrew Terminal dependency is unavailable on
+  macOS, and the panel requires full Xcode selected (both documented above).
+  The `QObject::connect` startup warning from the project-search results list
+  was fixed.
 
 ### Stage 13 — Simple code intelligence — **done**
 - Word completion from the current buffer while typing (`AcsDocument`,

@@ -5,15 +5,15 @@ dependency, not urgency.
 
 ## 1. macOS verification (needs a Mac)
 
-The Apple panel, simulator/scheme discovery, and `xcodebuild`/`simctl`
-integration are compiled and unit-tested on Linux but have never run against a
-real Xcode installation. Use `run-plan.md` (Stage 11) to:
+Validated on macOS 26.5 (arm64) with Xcode 26.2, iOS 26.3 simulators, and
+Homebrew Qt 6.12/QScintilla 2.14. Use `run-plan.md` (Stage 11) for the full
+record:
 
-- [ ] Build with Homebrew Qt/QScintilla and confirm CMake discovery.
-- [ ] Open an iOS project; verify scheme listing, simulator boot/shutdown,
+- [x] Build with Homebrew Qt/QScintilla and confirm CMake discovery.
+- [x] Open an iOS project; verify scheme listing, simulator boot/shutdown,
       Build/Install/Run, and the log stream.
-- [ ] Confirm the `.app` bundle launches outside the build tree.
-- [ ] Record any fixes in the plan and `CHANGELOG.md`.
+- [x] Confirm the `.app` bundle launches outside the build tree.
+- [x] Record any fixes in the plan and `CHANGELOG.md`.
 
 ## 2. macOS signing and notarization (needs a Mac + Apple account)
 
